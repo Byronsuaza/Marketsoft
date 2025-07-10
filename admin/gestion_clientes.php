@@ -11,31 +11,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
 // Procesar acciones
 $success = $error = '';
 
-// Cambiar estado del cliente (activar/desactivar)
-if (isset($_GET['toggle_status'])) {
-    $cliente_id = (int)$_GET['toggle_status'];
-    $stmt = $pdo->prepare('UPDATE usuarios SET activo = NOT activo WHERE id = ? AND rol != "admin"');
-    $stmt->execute([$cliente_id]);
-    $success = 'Estado del cliente actualizado correctamente.';
-}
-
-// Eliminar cliente (solo si no tiene pedidos)
-if (isset($_GET['delete'])) {
-    $cliente_id = (int)$_GET['delete'];
-    
-    // Verificar si tiene pedidos
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM pedidos WHERE usuario_id = ?');
-    $stmt->execute([$cliente_id]);
-    $tiene_pedidos = $stmt->fetchColumn() > 0;
-    
-    if ($tiene_pedidos) {
-        $error = 'No se puede eliminar el cliente porque tiene pedidos asociados.';
-    } else {
-        $stmt = $pdo->prepare('DELETE FROM usuarios WHERE id = ? AND rol != "admin"');
-        $stmt->execute([$cliente_id]);
-        $success = 'Cliente eliminado correctamente.';
-    }
-}
+// Eliminar lógica de cambio de estado activo/inactivo y filtros relacionados
+// Eliminar estadísticas de clientes activos/inactivos
+// Eliminar columna y badges de estado en la tabla
+// Eliminar campo de estado en el formulario de edición
+// Eliminar botón de activar/desactivar
 
 // Filtros
 $busqueda = $_GET['busqueda'] ?? '';
@@ -54,11 +34,10 @@ if ($busqueda) {
     $params[] = $busqueda_param;
 }
 
+// Eliminar lógica PHP relacionada con el filtro de estado
 if ($estado_filtro !== '') {
-    $where_conditions[] = "u.activo = ?";
-    $params[] = $estado_filtro;
-} elseif (!$ver_inactivos) {
-    $where_conditions[] = "u.activo = 1";
+    // Eliminado: $where_conditions[] = "u.activo = ?";
+    // Eliminado: $params[] = $estado_filtro;
 }
 
 $where_clause = implode(' AND ', $where_conditions);
@@ -82,8 +61,6 @@ $clientes = $stmt->fetchAll();
 
 // Estadísticas generales
 $total_clientes = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol != 'admin'")->fetchColumn();
-$clientes_activos = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol != 'admin' AND activo = 1")->fetchColumn();
-$clientes_inactivos = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol != 'admin' AND activo = 0")->fetchColumn();
 $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE estado IN ('enviado','entregado','completado')")->fetchColumn();
 ?>
 
@@ -157,32 +134,6 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card card-stats bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0"><?= number_format($clientes_activos) ?></h4>
-                            <small>Clientes Activos</small>
-                        </div>
-                        <i class="fas fa-user-check fa-2x opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card card-stats bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0"><?= number_format($clientes_inactivos) ?></h4>
-                            <small>Clientes Inactivos</small>
-                        </div>
-                        <i class="fas fa-user-times fa-2x opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
             <div class="card card-stats bg-info text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
@@ -206,24 +157,14 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
                        value="<?= htmlspecialchars($busqueda) ?>" 
                        placeholder="Nombre, correo o teléfono...">
             </div>
-            <div class="col-md-3">
-                <label for="estado_filtro" class="form-label">Estado</label>
-                <select class="form-select" id="estado_filtro" name="estado_filtro">
-                    <option value="">Todos</option>
-                    <option value="1" <?= $estado_filtro === '1' ? 'selected' : '' ?>>Activos</option>
-                    <option value="0" <?= $estado_filtro === '0' ? 'selected' : '' ?>>Inactivos</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">&nbsp;</label>
-                <div>
-                    <button type="submit" class="btn btn-light me-2">
-                        <i class="fas fa-search me-1"></i>Buscar
-                    </button>
-                    <a href="gestion_clientes.php" class="btn btn-outline-light">
-                        <i class="fas fa-times me-1"></i>Limpiar
-                    </a>
-                </div>
+            <!-- Eliminar select de estado -->
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-light me-2">
+                    <i class="fas fa-search me-1"></i>Buscar
+                </button>
+                <a href="gestion_clientes.php" class="btn btn-outline-light">
+                    <i class="fas fa-times me-1"></i>Limpiar
+                </a>
             </div>
         </form>
     </div>
@@ -243,7 +184,6 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
                             <th>Correo</th>
                             <th>Teléfono</th>
                             <th>Dirección</th>
-                            <th>Estado</th>
                             <th>Pedidos</th>
                             <th>Total Gastado</th>
                             <th>Último Pedido</th>
@@ -253,13 +193,13 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
                     <tbody>
                         <?php if (empty($clientes)): ?>
                             <tr>
-                                <td colspan="10" class="text-center text-muted">
+                                <td colspan="9" class="text-center text-muted">
                                     <i class="fas fa-search me-2"></i>No se encontraron clientes
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($clientes as $cliente): ?>
-                                <tr class="<?= $cliente['activo'] ? '' : 'table-danger' ?>">
+                                <tr>
                                     <td><?= $cliente['id'] ?></td>
                                     <td>
                                         <strong><?= htmlspecialchars($cliente['nombre']) ?></strong>
@@ -270,13 +210,6 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
                                     <td><?= htmlspecialchars($cliente['correo']) ?></td>
                                     <td><?= htmlspecialchars($cliente['telefono'] ?? '-') ?></td>
                                     <td><?= htmlspecialchars($cliente['direccion'] ?? '-') ?></td>
-                                    <td>
-                                        <?php if ($cliente['activo']): ?>
-                                            <span class="badge bg-success badge-status">Activo</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-danger badge-status">Inactivo</span>
-                                        <?php endif; ?>
-                                    </td>
                                     <td>
                                         <span class="badge bg-info"><?= $cliente['total_pedidos'] ?></span>
                                     </td>
@@ -308,20 +241,12 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
                                                     title="Editar">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <a href="?toggle_status=<?= $cliente['id'] ?>" 
-                                               class="btn btn-sm btn-outline-<?= $cliente['activo'] ? 'warning' : 'success' ?> btn-action"
-                                               title="<?= $cliente['activo'] ? 'Desactivar' : 'Activar' ?>"
-                                               onclick="return confirm('¿Estás seguro de cambiar el estado de este cliente?')">
-                                                <i class="fas fa-<?= $cliente['activo'] ? 'ban' : 'check' ?>"></i>
-                                            </a>
-                                            <?php if ($cliente['total_pedidos'] == 0): ?>
-                                                <a href="?delete=<?= $cliente['id'] ?>" 
+                                            <a href="?delete=<?= $cliente['id'] ?>" 
                                                    class="btn btn-sm btn-outline-danger btn-action"
                                                    title="Eliminar"
                                                    onclick="return confirm('¿Estás seguro de eliminar este cliente? Esta acción no se puede deshacer.')">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
-                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -380,13 +305,6 @@ $total_ventas = $pdo->query("SELECT IFNULL(SUM(total),0) FROM pedidos WHERE esta
                         <label for="edit_direccion" class="form-label">Dirección</label>
                         <textarea class="form-control" id="edit_direccion" name="direccion" rows="3"></textarea>
                     </div>
-                    <div class="mb-3">
-                        <label for="edit_activo" class="form-label">Estado</label>
-                        <select class="form-select" id="edit_activo" name="activo">
-                            <option value="1">Activo</option>
-                            <option value="0">Inactivo</option>
-                        </select>
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -424,7 +342,6 @@ function editarCliente(clienteId) {
                 document.getElementById('edit_correo').value = data.cliente.correo;
                 document.getElementById('edit_telefono').value = data.cliente.telefono || '';
                 document.getElementById('edit_direccion').value = data.cliente.direccion || '';
-                document.getElementById('edit_activo').value = data.cliente.activo;
                 new bootstrap.Modal(document.getElementById('modalEditar')).show();
             } else {
                 alert('Error al cargar los datos del cliente');

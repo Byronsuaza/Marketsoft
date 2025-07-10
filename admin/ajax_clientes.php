@@ -59,9 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
                 <tr><td><strong>Correo:</strong></td><td>" . htmlspecialchars($cliente['correo']) . "</td></tr>
                 <tr><td><strong>Teléfono:</strong></td><td>" . htmlspecialchars($cliente['telefono'] ?? 'No registrado') . "</td></tr>
                 <tr><td><strong>Dirección:</strong></td><td>" . htmlspecialchars($cliente['direccion'] ?? 'No registrada') . "</td></tr>
-                <tr><td><strong>Estado:</strong></td><td>
-                    " . ($cliente['activo'] ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-danger">Inactivo</span>') . "
-                </td></tr>
                 <tr><td><strong>Fecha Registro:</strong></td><td>" . date('d/m/Y H:i', strtotime($cliente['fecha_registro'] ?? 'now')) . "</td></tr>
             </table>
         </div>
@@ -149,7 +146,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $correo = trim($_POST['correo']);
     $telefono = trim($_POST['telefono'] ?? '');
     $direccion = trim($_POST['direccion'] ?? '');
-    $activo = (int)$_POST['activo'];
     
     // Validaciones
     if (empty($nombre) || empty($correo)) {
@@ -173,10 +169,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $stmt = $pdo->prepare("
             UPDATE usuarios 
-            SET nombre = ?, correo = ?, telefono = ?, direccion = ?, activo = ?
+            SET nombre = ?, correo = ?, telefono = ?, direccion = ?
             WHERE id = ? AND rol != 'admin'
         ");
-        $stmt->execute([$nombre, $correo, $telefono, $direccion, $activo, $id]);
+        $stmt->execute([$nombre, $correo, $telefono, $direccion, $id]);
         
         echo json_encode(['success' => true, 'message' => 'Cliente actualizado correctamente']);
     } catch (Exception $e) {
